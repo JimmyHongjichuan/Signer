@@ -13,14 +13,14 @@ import (
 )
 
 
-func genTx() {
-	privWif := "cS5LWK2aUKgP9LmvViG3m9HkfwjaEJpGVbrFHuGZKvW2ae3W9aUe"
-	txHash := "12e0d25258ec29fadf75a3f569fccaeeb8ca4af5d2d34e9a48ab5a6fdc0efc1e"
-	destination := "mrdKfqWEkwferzEQus5NpgK2Dtpq7Qcgif"
+func GenTx(net *chaincfg.Params) {
+	privWif := "KwLQYGA7nsvQqZeJP38qPQHgjcPZvE79jRQgPgu5tAHvFF8gWm3n" //"cQ6U2aZFZdhtfEAVZPgCDrRAzTsnReZpcCZngRjLbdL6GrKGptCS"
+	txHash := "a41e8a514ba537ff618528add6910e315193094df0ff2345f540f4206079c005"
+	destination := "2NDF4ygHLwp6JRPGrmv4j6SMmYyq3QVWWZV"
 	amount := int64(11650795)
 	txFee := int64(500000)
 	sourceUTXOIndex := uint32(1)
-	chainParams := &chaincfg.TestNet3Params
+	chainParams := net
 
 	decodedWif, err := btcutil.DecodeWIF(privWif)
 	if err != nil {
@@ -28,8 +28,12 @@ func genTx() {
 	}
 
 	fmt.Printf("Decoded WIF: %v\n", decodedWif) // Decoded WIF: cS5LWK2aUKgP9LmvViG3m9HkfwjaEJpGVbrFHuGZKvW2ae3W9aUe
+	//PubKey, err := hex.DecodeString("030b4bbfeca237a4bab81a3adeef76cc1cbcfa5e7cac5c22754e47ba42e1fe9579")
+	//if err != nil {
+	//	panic(err)
+	//}
 
-	addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), chainParams)
+	addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), chainParams)//decodedWif.PrivKey.PubKey().SerializeUncompressed()
 	if err != nil {
 		log.Fatal(err)
 	}

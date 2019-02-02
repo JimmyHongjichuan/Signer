@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/JimmyHongjichuan/Signer/btc"
-	"github.com/JimmyHongjichuan/btc_watcher/primitives"
+	"github.com/btcsuite/btcd/chaincfg"
 )
 
 
@@ -12,15 +12,23 @@ import (
 
 
 func main() {
-	address, err := btc.BitCoinHashToAddress("c19ba54b40598eab41f636b4b5c3fe6493dddd64", primitives.P2SH)
-	//address, err := primitives.BitCoinHashToAddress("78c0c1bd8bf13af60f4b0371c2f5f9353de777c9", primitives.P2PKH)
+	address, err := btc.BitCoinHashToAddress("be55f02c63d6cb855c953e44cb86f2e57d01e3e5", btc.P2SH_PREFIX)
+	//address, err := btc.BitCoinHashToAddress("d626f681ab699644fc0120642fb71f590a4b86fd", btc.REGTEST_PREFIX)
 
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("BITCOIN ADDRESS: ", address)
-	address_input := "03fcad68904be57b0a8133293ef4c3f49218df2da8886ed1257bc9f7e7d5a70e28"
-	btc.GetInputAddress(address_input)
-	script_input := "5221020fa7bed1b89df218a2ed2c94ebbf872a7bda0f48d231eb8cb6f16b87d9bb52112102d7e287092457f2bea226cd7537c5ee99af50cca923795a2ea65cf249f783c5d12102e8b48f3c0a7c452792fa96cdcf2fc6a23298f4d6512bd8aa9a25210b66a1d45053ae"
-	btc.GetInputAddrP2SH(script_input)
+	address_input := "0020fa28dc1e5eb222055e90f8cade9bcd13ca9ddab7a5ed029e27d41a736f7455ce" //31w3iWUN5EMJMW2YRCc5m4RFqm3zN61xK2
+	btc.GetInputAddress(address_input, &chaincfg.MainNetParams, btc.ScriptHash)
+	address_input = "0020fa28dc1e5eb222055e90f8cade9bcd13ca9ddab7a5ed029e27d41a736f7455ce"//
+	param := chaincfg.RegressionNetParams;
+	param.PubKeyHashAddrID = 0xc4
+	btc.GetInputAddress(address_input, &param, btc.ScriptHash)
+	address_input = "fa28dc1e5eb222055e90f8cade9bcd13ca9ddab7a5ed029e27d41a736f7455ce"
+	btc.GetInputAddress(address_input, &chaincfg.MainNetParams, btc.WitnessScriptHash)
+	address_input = "2c86f6f95f2fbcf5d7fe9e2e87f9860af9041e5f"
+	btc.GetInputAddress(address_input, &param, btc.WitnessPubKeyHash)
+	btc.GenTx(&chaincfg.MainNetParams)
+
 }

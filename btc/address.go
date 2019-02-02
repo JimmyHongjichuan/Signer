@@ -12,25 +12,23 @@ import (
 
 const P2PKH_PREFIX = byte(0x00)
 const P2SH_PREFIX = byte(0x05)
+const TESTNET_SCRIPT_PREFIX = byte(0xc4)
+const REGTEST_PREFIX = byte(0xc4)
+
 const (
-	P2PKH int = iota
-	P2SH
+	PubKeyHash int = iota
+	ScriptHash
+	WitnessPubKeyHash
+	WitnessScriptHash
 )
 
-func BitCoinHashToAddress(pkscript string, script_type int) (string, error) {
+func BitCoinHashToAddress(pkscript string, script_type byte) (string, error) {
 	hash, err := hex.DecodeString(pkscript)
 	if err != nil {
 		log.Fatal(err)
 	}
-	var prefix byte
-	if script_type == P2PKH {
-		prefix = P2PKH_PREFIX
-		fmt.Println("P2PKH")
-	} else {
-		prefix = P2SH_PREFIX
-		fmt.Println("P2SH")
-	}
-	pf := append([]byte{prefix}, hash...)
+
+	pf := append([]byte{script_type}, hash...)
 	b := append(pf, checkSum(pf)...)
 
 	address := base58.Encode(b)
@@ -44,30 +42,51 @@ func checkSum(publicKeyHash []byte) []byte {
 }
 
 
-func GetInputAddress(addres string){
-	chainParams :=  &chaincfg.MainNetParams;
-	PubKey , err := hex.DecodeString(addres)
+func GetInputAddress(script string, net *chaincfg.Params, hash_type int) {
+	chainParams := net;
+	PubKey, err := hex.DecodeString(script)
 	if err != nil {
 		panic(err)
 	}
-	addressPubKey, err := btcutil.NewAddressPubKey(PubKey, chainParams)
-	if err != nil {
-		log.Fatal(err)
+
+	var addressPubKey *btcutil.AddressPubKey
+	var addressScript *btcutil.AddressScriptHash
+	var addressWitnessPubKey *btcutil.AddressWitnessPubKeyHash
+	var addressWitnessScriptKey *btcutil.AddressWitnessScriptHash
+	if (hash_type == PubKeyHash) {
+
+		addressPubKey, err = btcutil.NewAddressPubKey(PubKey, chainParams)
+		if err != nil {
+			log.Fatal(err)
+		}
+		address := addressPubKey.EncodeAddress()
+		fmt.Println(address)
+	} else if (hash_type == ScriptHash) {
+		addressScript, err = btcutil.NewAddressScriptHash(PubKey, chainParams)
+		if err != nil {
+			log.Fatal(err)
+		}
+		address := addressScript.EncodeAddress()
+		fmt.Println(address)
+	} else if (hash_type == WitnessPubKeyHash){
+		addressWitnessPubKey, err = btcutil.NewAddressWitnessPubKeyHash(PubKey, chainParams)
+		if err != nil {
+			log.Fatal(err)
+		}
+		address := 	addressWitnessPubKey.EncodeAddress()
+		fmt.Println(address)
+	} else if(hash_type == WitnessScriptHash){
+		addressWitnessScriptKey, err = btcutil.NewAddressWitnessScriptHash(PubKey, chainParams)
+		if err != nil {
+			log.Fatal(err)
+		}
+		address := 	addressWitnessScriptKey.EncodeAddress()
+		fmt.Println(address)
 	}
-	address := addressPubKey.EncodeAddress()
-	fmt.Println (address)
+
 }
 
-func GetInputAddrP2SH(addres string){
-	chainParams :=  &chaincfg.MainNetParams;
-	script , err := hex.DecodeString(addres)
-	if err != nil {
-		log.Fatal(err)
-	}
-	addressScript, err := btcutil.NewAddressScriptHash(script, chainParams)
-	if err != nil {
-		log.Fatal(err)
-	}
-	address := addressScript.EncodeAddress()
-	fmt.Println (address)
-}
+
+
+
+
