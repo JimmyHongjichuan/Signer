@@ -15,7 +15,8 @@ func main() {
 	wif, _ := btc.Coinnetwork["btc"].CreatePrivateKey()
 	Genaddress, _ := btc.Coinnetwork["btc"].GetAddress(wif)
 	fmt.Printf("%s - %s\n", wif.String(), Genaddress.EncodeAddress())
-	transaction, err := btc.CreateTransaction("cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG", "n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3", 50000000, "2e4a8032ccea1e827ce5ee00d279a6ef1599c360d8096a9239f6a06993fa934d",&chaincfg.RegressionNetParams)
+	transaction, err := btc.CreateTransaction("cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG", "n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3", 499900000, "42a8cc0c246783d1d0c4d382938e6f47667bd7d108ab9bcb804710075399f827",&chaincfg.RegressionNetParams, true)
+	//transaction, err := btc.CreateTransaction("cS5LWK2aUKgP9LmvViG3m9HkfwjaEJpGVbrFHuGZKvW2ae3W9aUe", "mrdKfqWEkwferzEQus5NpgK2Dtpq7Qcgif", 499900000, "12e0d25258ec29fadf75a3f569fccaeeb8ca4af5d2d34e9a48ab5a6fdc0efc1e",&chaincfg.TestNet3Params)
 	if err != nil {
 		fmt.Println(err)
 		return

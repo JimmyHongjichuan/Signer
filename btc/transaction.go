@@ -22,16 +22,21 @@ type Transaction struct {
 	SignedTx           string `json:"signedtx"`
 }
 
-func CreateTransaction(secret string, destination string, amount int64, txHash string, net *chaincfg.Params) (Transaction, error) {
+func CreateTransaction(secret string, destination string, amount int64, txHash string, net *chaincfg.Params,WIF_compress bool) (Transaction, error) {
 	var transaction Transaction
 	wif, err := btcutil.DecodeWIF(secret)
 	if err != nil {
 		return Transaction{}, err
 	}
-	addresspubkey, _ := btcutil.NewAddressPubKey(wif.PrivKey.PubKey().SerializeCompressed(), net)
+	var addresspubkey *btcutil.AddressPubKey;
+	if (WIF_compress == true) {
+		addresspubkey, _ = btcutil.NewAddressPubKey(wif.PrivKey.PubKey().SerializeCompressed(), net)
+	} else {
+		addresspubkey, _ = btcutil.NewAddressPubKey(wif.PrivKey.PubKey().SerializeUncompressed(), net)
+	}
 	sourceTx := wire.NewMsgTx(wire.TxVersion)
 	sourceUtxoHash, _ := chainhash.NewHashFromStr(txHash)
-	sourceUtxo := wire.NewOutPoint(sourceUtxoHash, 0)
+	sourceUtxo := wire.NewOutPoint(sourceUtxoHash, 1)
 	sourceTxIn := wire.NewTxIn(sourceUtxo, nil, nil)
 	destinationAddress, err := btcutil.DecodeAddress(destination, net)
 	sourceAddress, err := btcutil.DecodeAddress(addresspubkey.EncodeAddress(), net)
@@ -46,12 +51,12 @@ func CreateTransaction(secret string, destination string, amount int64, txHash s
 	sourceTx.AddTxOut(sourceTxOut)
 	sourceTxHash := sourceTx.TxHash()
 	redeemTx := wire.NewMsgTx(wire.TxVersion)
-	prevOut := wire.NewOutPoint(&sourceTxHash, 0)
+	prevOut := wire.NewOutPoint(&sourceTxHash, 1)
 	redeemTxIn := wire.NewTxIn(prevOut, nil, nil)
 	redeemTx.AddTxIn(redeemTxIn)
 	redeemTxOut := wire.NewTxOut(amount, destinationPkScript)
 	redeemTx.AddTxOut(redeemTxOut)
-	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTx.TxOut[0].PkScript, txscript.SigHashAll, wif.PrivKey, false)
+	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTx.TxOut[0].PkScript, txscript.SigHashAll, wif.PrivKey, WIF_compress)
 	if err != nil {
 		return Transaction{}, err
 	}
@@ -79,11 +84,11 @@ func CreateTransaction(secret string, destination string, amount int64, txHash s
 
 func GenTx(net *chaincfg.Params) {
 	privWif := "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG"
-	txHash := "2e4a8032ccea1e827ce5ee00d279a6ef1599c360d8096a9239f6a06993fa934d"
+	txHash := "42a8cc0c246783d1d0c4d382938e6f47667bd7d108ab9bcb804710075399f827"
 	destination := "n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3"
-	amount := int64(20000000)
+	amount := int64(1800000000)
 	txFee := int64(500000)
-	sourceUTXOIndex := uint32(0)
+	sourceUTXOIndex := uint32(1)
 	chainParams := net
 
 	decodedWif, err := btcutil.DecodeWIF(privWif)
@@ -140,7 +145,7 @@ func GenTx(net *chaincfg.Params) {
 	redeemTxOut := wire.NewTxOut((amount - txFee), destinationPkScript)
 	redeemTx.AddTxOut(redeemTxOut)
 
-	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTxOut.PkScript, txscript.SigHashAll, decodedWif.PrivKey, false)
+	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTxOut.PkScript, txscript.SigHashAll, decodedWif.PrivKey, true)
 	if err != nil {
 		log.Fatal(err)
 	}
