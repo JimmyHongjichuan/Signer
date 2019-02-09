@@ -14,7 +14,7 @@ import (
 
 
 func GenTx(net *chaincfg.Params) {
-	privWif := "KwLQYGA7nsvQqZeJP38qPQHgjcPZvE79jRQgPgu5tAHvFF8gWm3n" //"cQ6U2aZFZdhtfEAVZPgCDrRAzTsnReZpcCZngRjLbdL6GrKGptCS"
+	privWif := "L5MFEsN1sXwtDsZvTRoZmzEK73GYJibkPvvtYLr3Eju3L4s92Xuv"//"KwLQYGA7nsvQqZeJP38qPQHgjcPZvE79jRQgPgu5tAHvFF8gWm3n"
 	txHash := "a41e8a514ba537ff618528add6910e315193094df0ff2345f540f4206079c005"
 	destination := "2NDF4ygHLwp6JRPGrmv4j6SMmYyq3QVWWZV"
 	amount := int64(11650795)
