@@ -44,5 +44,7 @@ func main() {
 	btc.GetInputAddress(address_input, &chaincfg.RegressionNetParams, btc.WitnessPubKeyHash)
 
 	//btc.GenTx(&chaincfg.MainNetParams)
-	btc.GenTx(&chaincfg.RegressionNetParams)
+	btc.GenTx(&chaincfg.RegressionNetParams, "cTLToYkrAqWYZCdtNYS76CRURTsoJN24QbFm2esDgsNymwoDrxS7",
+		"mnidqMa1Wd9KoxdC55u8cL8pGhLnYL7DiW",1799500000,500000,
+		"d4080819a47654a3794aac0255ecbe841d8ed19e184cf6df0a972e95e5d9a5d6", 0,true)
 }

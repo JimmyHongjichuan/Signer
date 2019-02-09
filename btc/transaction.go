@@ -82,13 +82,13 @@ func CreateTransaction(secret string, destination string, amount int64, txHash s
 	return transaction, nil
 }
 
-func GenTx(net *chaincfg.Params) {
-	privWif := "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG"
-	txHash := "42a8cc0c246783d1d0c4d382938e6f47667bd7d108ab9bcb804710075399f827"
-	destination := "n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3"
-	amount := int64(1800000000)
-	txFee := int64(500000)
-	sourceUTXOIndex := uint32(1)
+func GenTx(net *chaincfg.Params,privWif string, destination string, amount int64, txFee int64, txHash string , txinIndex int32,WIF_compress bool) {
+	//privWif := "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG"
+	//txHash := "42a8cc0c246783d1d0c4d382938e6f47667bd7d108ab9bcb804710075399f827"
+	//destination := "n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3"
+	//amount := int64(1800000000)
+	//txFee := int64(500000)
+	sourceUTXOIndex := uint32(txinIndex)
 	chainParams := net
 
 	decodedWif, err := btcutil.DecodeWIF(privWif)
@@ -101,8 +101,13 @@ func GenTx(net *chaincfg.Params) {
 	//if err != nil {
 	//	panic(err)
 	//}
-
-	addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), chainParams)//decodedWif.PrivKey.PubKey().SerializeUncompressed()
+	var addressPubKey *btcutil.AddressPubKey;
+	if (WIF_compress == true) {
+		addressPubKey, _ = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), net)
+	} else {
+		addressPubKey, _ = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), net)
+	}
+	//addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), chainParams)//decodedWif.PrivKey.PubKey().SerializeUncompressed()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -145,7 +150,7 @@ func GenTx(net *chaincfg.Params) {
 	redeemTxOut := wire.NewTxOut((amount - txFee), destinationPkScript)
 	redeemTx.AddTxOut(redeemTxOut)
 
-	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTxOut.PkScript, txscript.SigHashAll, decodedWif.PrivKey, true)
+	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTxOut.PkScript, txscript.SigHashAll, decodedWif.PrivKey, WIF_compress)
 	if err != nil {
 		log.Fatal(err)
 	}
