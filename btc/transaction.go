@@ -13,13 +13,77 @@ import (
 )
 
 
+type Transaction struct {
+	TxId               string `json:"txid"`
+	SourceAddress      string `json:"source_address"`
+	DestinationAddress string `json:"destination_address"`
+	Amount             int64  `json:"amount"`
+	UnsignedTx         string `json:"unsignedtx"`
+	SignedTx           string `json:"signedtx"`
+}
+
+func CreateTransaction(secret string, destination string, amount int64, txHash string, net *chaincfg.Params) (Transaction, error) {
+	var transaction Transaction
+	wif, err := btcutil.DecodeWIF(secret)
+	if err != nil {
+		return Transaction{}, err
+	}
+	addresspubkey, _ := btcutil.NewAddressPubKey(wif.PrivKey.PubKey().SerializeCompressed(), net)
+	sourceTx := wire.NewMsgTx(wire.TxVersion)
+	sourceUtxoHash, _ := chainhash.NewHashFromStr(txHash)
+	sourceUtxo := wire.NewOutPoint(sourceUtxoHash, 0)
+	sourceTxIn := wire.NewTxIn(sourceUtxo, nil, nil)
+	destinationAddress, err := btcutil.DecodeAddress(destination, net)
+	sourceAddress, err := btcutil.DecodeAddress(addresspubkey.EncodeAddress(), net)
+	if err != nil {
+		return Transaction{}, err
+	}
+	fmt.Printf("Source Address: %s\n", sourceAddress)
+	destinationPkScript, _ := txscript.PayToAddrScript(destinationAddress)
+	sourcePkScript, _ := txscript.PayToAddrScript(sourceAddress)
+	sourceTxOut := wire.NewTxOut(amount, sourcePkScript)
+	sourceTx.AddTxIn(sourceTxIn)
+	sourceTx.AddTxOut(sourceTxOut)
+	sourceTxHash := sourceTx.TxHash()
+	redeemTx := wire.NewMsgTx(wire.TxVersion)
+	prevOut := wire.NewOutPoint(&sourceTxHash, 0)
+	redeemTxIn := wire.NewTxIn(prevOut, nil, nil)
+	redeemTx.AddTxIn(redeemTxIn)
+	redeemTxOut := wire.NewTxOut(amount, destinationPkScript)
+	redeemTx.AddTxOut(redeemTxOut)
+	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTx.TxOut[0].PkScript, txscript.SigHashAll, wif.PrivKey, false)
+	if err != nil {
+		return Transaction{}, err
+	}
+	redeemTx.TxIn[0].SignatureScript = sigScript
+	flags := txscript.StandardVerifyFlags
+	vm, err := txscript.NewEngine(sourceTx.TxOut[0].PkScript, redeemTx, 0, flags, nil, nil, amount)
+	if err != nil {
+		return Transaction{}, err
+	}
+	if err := vm.Execute(); err != nil {
+		return Transaction{}, err
+	}
+	var unsignedTx bytes.Buffer
+	var signedTx bytes.Buffer
+	sourceTx.Serialize(&unsignedTx)
+	redeemTx.Serialize(&signedTx)
+	transaction.TxId = sourceTxHash.String()
+	transaction.UnsignedTx = hex.EncodeToString(unsignedTx.Bytes())
+	transaction.Amount = amount
+	transaction.SignedTx = hex.EncodeToString(signedTx.Bytes())
+	transaction.SourceAddress = sourceAddress.EncodeAddress()
+	transaction.DestinationAddress = destinationAddress.EncodeAddress()
+	return transaction, nil
+}
+
 func GenTx(net *chaincfg.Params) {
-	privWif := "L5MFEsN1sXwtDsZvTRoZmzEK73GYJibkPvvtYLr3Eju3L4s92Xuv"//"KwLQYGA7nsvQqZeJP38qPQHgjcPZvE79jRQgPgu5tAHvFF8gWm3n"
-	txHash := "a41e8a514ba537ff618528add6910e315193094df0ff2345f540f4206079c005"
-	destination := "2NDF4ygHLwp6JRPGrmv4j6SMmYyq3QVWWZV"
-	amount := int64(11650795)
+	privWif := "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG"
+	txHash := "2e4a8032ccea1e827ce5ee00d279a6ef1599c360d8096a9239f6a06993fa934d"
+	destination := "n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3"
+	amount := int64(20000000)
 	txFee := int64(500000)
-	sourceUTXOIndex := uint32(1)
+	sourceUTXOIndex := uint32(0)
 	chainParams := net
 
 	decodedWif, err := btcutil.DecodeWIF(privWif)
@@ -33,7 +97,7 @@ func GenTx(net *chaincfg.Params) {
 	//	panic(err)
 	//}
 
-	addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), chainParams)//decodedWif.PrivKey.PubKey().SerializeUncompressed()
+	addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), chainParams)//decodedWif.PrivKey.PubKey().SerializeUncompressed()
 	if err != nil {
 		log.Fatal(err)
 	}
