@@ -45,6 +45,10 @@ func main() {
 	txoutInfos := make([]btc.TxOutAddressInfo, 0)
 	txoutInfos = append(txoutInfos, btc.TxOutAddressInfo{"n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3", 800000000})
 	txoutInfos = append(txoutInfos, btc.TxOutAddressInfo{"mgbMRCieM4b2owd8K6bDd7fjhzNPMirqb7", 998500000})
+	var WIFs = make([]string, 0)
+	WIFs = append(WIFs, "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG")
+	WIFs = append(WIFs, "cRFq9JJGVqjGe9RDpT49BxCPbGJoy1N8jGk4Muit8iP1JtpJE4XA")
+	btc.GenMultiSigTx(&chaincfg.RegressionNetParams, WIFs,  "9534292079b08b9aff3131ff1904fa0be283aea797a91ed7c6b70f0ba9b62933" , 1499000000, 0, true)
 	//btc.GenTx(&chaincfg.MainNetParams)
 	btc.GenTx(&chaincfg.RegressionNetParams, "cRFq9JJGVqjGe9RDpT49BxCPbGJoy1N8jGk4Muit8iP1JtpJE4XA",
 		1799000000,txoutInfos,

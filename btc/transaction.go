@@ -1,6 +1,8 @@
 package btc
 
 import (
+	"errors"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
@@ -86,6 +88,176 @@ func CreateTransaction(secret string, destination string, amount int64, txHash s
 	transaction.DestinationAddress = destinationAddress.EncodeAddress()
 	return transaction, nil
 }
+type addressToKey struct {
+	key        *btcec.PrivateKey
+	compressed bool
+}
+
+func mkGetKey(keys map[string]addressToKey) txscript.KeyDB {
+	if keys == nil {
+		return txscript.KeyClosure(func(addr btcutil.Address) (*btcec.PrivateKey,
+			bool, error) {
+			return nil, false, errors.New("nope")
+		})
+	}
+	return txscript.KeyClosure(func(addr btcutil.Address) (*btcec.PrivateKey,
+		bool, error) {
+		a2k, ok := keys[addr.EncodeAddress()]
+		if !ok {
+			return nil, false, errors.New("nope")
+		}
+		return a2k.key, a2k.compressed, nil
+	})
+}
+
+func checkScripts(msg string, tx *wire.MsgTx, idx int, inputAmt int64, sigScript, pkScript []byte) error {
+	tx.TxIn[idx].SignatureScript = sigScript
+	vm, err := txscript.NewEngine(pkScript, tx, idx,
+		txscript.ScriptBip16|txscript.ScriptVerifyDERSignatures, nil, nil, inputAmt)
+	if err != nil {
+		return fmt.Errorf("failed to make script engine for %s: %v",
+			msg, err)
+	}
+
+	err = vm.Execute()
+	if err != nil {
+		return fmt.Errorf("invalid script signature for %s: %v", msg,
+			err)
+	}
+
+	return nil
+}
+
+func signAndCheck(msg string, tx *wire.MsgTx, idx int, inputAmt int64, pkScript []byte,
+	hashType txscript.SigHashType, kdb txscript.KeyDB, sdb txscript.ScriptDB,
+	previousScript []byte) error {
+
+	sigScript, err := txscript.SignTxOutput(&chaincfg.TestNet3Params, tx, idx,
+		pkScript, hashType, kdb, sdb, nil)
+	if err != nil {
+		return fmt.Errorf("failed to sign output %s: %v", msg, err)
+	}
+
+	return checkScripts(msg, tx, idx, inputAmt, sigScript, pkScript)
+}
+
+func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
+	if scripts == nil {
+		return txscript.ScriptClosure(func(addr btcutil.Address) ([]byte, error) {
+			return nil, errors.New("nope")
+		})
+	}
+	return txscript.ScriptClosure(func(addr btcutil.Address) ([]byte, error) {
+		script, ok := scripts[addr.EncodeAddress()]
+		if !ok {
+			return nil, errors.New("nope")
+		}
+		return script, nil
+	})
+}
+
+
+func GenMultiSigTx(net *chaincfg.Params,privWif []string,  txHash string ,amount int64, txinIndex int32,WIF_compress bool){
+	var addressPubKeys []*btcutil.AddressPubKey = make([]*btcutil.AddressPubKey ,0)
+	var sig_keys []*btcutil.WIF = make([]*btcutil.WIF, 10)
+	for _, wif := range privWif {
+		decodedWif, err := btcutil.DecodeWIF(wif)
+		if err != nil {
+			log.Fatal(err)
+		}
+		sig_keys = append(sig_keys, decodedWif)
+		fmt.Printf("Decoded WIF: %v\n", decodedWif) // Decoded WIF: cS5LWK2aUKgP9LmvViG3m9HkfwjaEJpGVbrFHuGZKvW2ae3W9aUe
+		//PubKey, err := hex.DecodeString("030b4bbfeca237a4bab81a3adeef76cc1cbcfa5e7cac5c22754e47ba42e1fe9579")
+		//if err != nil {
+		//	panic(err)
+		//}
+
+		if (WIF_compress == true) {
+			addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), net)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+			addressPubKeys = append(addressPubKeys,addressPubKey)
+		} else {
+			addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), net)
+			if err != nil {
+				log.Fatal(err)
+			}
+			addressPubKeys = append(addressPubKeys,addressPubKey)
+		}
+	}
+	pkScript, err := txscript.MultiSigScript(
+		addressPubKeys,
+		2)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	scriptAddr, err := btcutil.NewAddressScriptHash(
+		pkScript, net)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Source Address: %s\n", scriptAddr)
+	scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+
+	//tx := &wire.MsgTx{
+	//	Version: 1,
+	//	TxIn: []*wire.TxIn{
+	//		{
+	//			PreviousOutPoint: wire.OutPoint{
+	//				Hash:  chainhash.Hash{},
+	//				Index: 0,
+	//			},
+	//			Sequence: 4294967295,
+	//		},
+	//		{
+	//			PreviousOutPoint: wire.OutPoint{
+	//				Hash:  chainhash.Hash{},
+	//				Index: 1,
+	//			},
+	//			Sequence: 4294967295,
+	//		},
+	//		{
+	//			PreviousOutPoint: wire.OutPoint{
+	//				Hash:  chainhash.Hash{},
+	//				Index: 2,
+	//			},
+	//			Sequence: 4294967295,
+	//		},
+	//	},
+	//	TxOut: []*wire.TxOut{
+	//		{
+	//			Value: 1,
+	//		},
+	//		{
+	//			Value: 2,
+	//		},
+	//		{
+	//			Value: 3,
+	//		},
+	//	},
+	//	LockTime: 0,
+	//}
+	redeemTx := wire.NewMsgTx(wire.TxVersion)
+
+	msg := fmt.Sprintf("%d:%d", txscript.SigHashAll, txinIndex)
+	if err := signAndCheck(msg, redeemTx, 0, amount,
+		scriptPkScript, txscript.SigHashAll,
+		mkGetKey(map[string]addressToKey{
+			addressPubKeys[0].EncodeAddress(): {sig_keys[0].PrivKey, true},
+			addressPubKeys[1].EncodeAddress(): {sig_keys[1].PrivKey, true},
+		}), mkGetScript(map[string][]byte{
+			scriptAddr.EncodeAddress(): pkScript,
+		}), nil); err != nil {
+		log.Fatal(err)
+	}
+}
 
 func GenTx(net *chaincfg.Params,privWif string,amount int64, txoutInfos []TxOutAddressInfo, txHash string , txinIndex int32,WIF_compress bool) {
 	//privWif := "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG"
@@ -108,14 +280,18 @@ func GenTx(net *chaincfg.Params,privWif string,amount int64, txoutInfos []TxOutA
 	//}
 	var addressPubKey *btcutil.AddressPubKey;
 	if (WIF_compress == true) {
-		addressPubKey, _ = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), net)
+		addressPubKey, err = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), net)
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
-		addressPubKey, _ = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), net)
+		addressPubKey, err = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), net)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	//addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), chainParams)//decodedWif.PrivKey.PubKey().SerializeUncompressed()
-	if err != nil {
-		log.Fatal(err)
-	}
+
 
 	sourceUTXOHash, err := chainhash.NewHashFromStr(txHash)
 	if err != nil {
