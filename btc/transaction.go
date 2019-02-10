@@ -22,6 +22,11 @@ type Transaction struct {
 	SignedTx           string `json:"signedtx"`
 }
 
+type TxOutAddressInfo struct {
+	DestinationAddress string `json:"destination_address"`
+	PayAmount             int64  `json:"pay_amount"`
+}
+
 func CreateTransaction(secret string, destination string, amount int64, txHash string, net *chaincfg.Params,WIF_compress bool) (Transaction, error) {
 	var transaction Transaction
 	wif, err := btcutil.DecodeWIF(secret)
@@ -82,7 +87,7 @@ func CreateTransaction(secret string, destination string, amount int64, txHash s
 	return transaction, nil
 }
 
-func GenTx(net *chaincfg.Params,privWif string, destination string, amount int64, txFee int64, txHash string , txinIndex int32,WIF_compress bool) {
+func GenTx(net *chaincfg.Params,privWif string,amount int64, txoutInfos []TxOutAddressInfo, txHash string , txinIndex int32,WIF_compress bool) {
 	//privWif := "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG"
 	//txHash := "42a8cc0c246783d1d0c4d382938e6f47667bd7d108ab9bcb804710075399f827"
 	//destination := "n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3"
@@ -121,10 +126,6 @@ func GenTx(net *chaincfg.Params,privWif string, destination string, amount int64
 
 	sourceUTXO := wire.NewOutPoint(sourceUTXOHash, sourceUTXOIndex)
 	sourceTxIn := wire.NewTxIn(sourceUTXO, nil, nil)
-	destinationAddress, err := btcutil.DecodeAddress(destination, chainParams)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	sourceAddress, err := btcutil.DecodeAddress(addressPubKey.EncodeAddress(), chainParams)
 	if err != nil {
@@ -133,10 +134,7 @@ func GenTx(net *chaincfg.Params,privWif string, destination string, amount int64
 
 	fmt.Printf("Source Address: %s\n", sourceAddress) // Source Address: mgjHgKi1g6qLFBM1gQwuMjjVBGMJdrs9pP
 
-	destinationPkScript, err := txscript.PayToAddrScript(destinationAddress)
-	if err != nil {
-		log.Fatal(err)
-	}
+
 
 	sourcePkScript, err := txscript.PayToAddrScript(sourceAddress)
 	if err != nil {
@@ -147,9 +145,19 @@ func GenTx(net *chaincfg.Params,privWif string, destination string, amount int64
 
 	redeemTx := wire.NewMsgTx(wire.TxVersion)
 	redeemTx.AddTxIn(sourceTxIn)
-	redeemTxOut := wire.NewTxOut((amount - txFee), destinationPkScript)
-	redeemTx.AddTxOut(redeemTxOut)
 
+	for _, txoutInfo := range txoutInfos {
+		destinationAddress, err := btcutil.DecodeAddress(txoutInfo.DestinationAddress, chainParams)
+		if err != nil {
+			log.Fatal(err)
+		}
+		destinationPkScript, err := txscript.PayToAddrScript(destinationAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		redeemTxOut := wire.NewTxOut(txoutInfo.PayAmount, destinationPkScript)
+		redeemTx.AddTxOut(redeemTxOut)
+	}
 	sigScript, err := txscript.SignatureScript(redeemTx, 0, sourceTxOut.PkScript, txscript.SigHashAll, decodedWif.PrivKey, WIF_compress)
 	if err != nil {
 		log.Fatal(err)
