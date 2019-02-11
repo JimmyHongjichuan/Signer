@@ -128,11 +128,11 @@ func checkScripts(msg string, tx *wire.MsgTx, idx int, inputAmt int64, sigScript
 	return nil
 }
 
-func signAndCheck(msg string, tx *wire.MsgTx, idx int, inputAmt int64, pkScript []byte,
+func signAndCheck(net *chaincfg.Params, msg string, tx *wire.MsgTx, idx int, inputAmt int64, pkScript []byte,
 	hashType txscript.SigHashType, kdb txscript.KeyDB, sdb txscript.ScriptDB,
 	previousScript []byte) error {
 
-	sigScript, err := txscript.SignTxOutput(&chaincfg.TestNet3Params, tx, idx,
+	sigScript, err := txscript.SignTxOutput(net, tx, idx,
 		pkScript, hashType, kdb, sdb, nil)
 	if err != nil {
 		return fmt.Errorf("failed to sign output %s: %v", msg, err)
@@ -157,9 +157,9 @@ func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
 }
 
 
-func GenMultiSigTx(net *chaincfg.Params,privWif []string,  txHash string ,amount int64, txinIndex int32,WIF_compress bool){
+func GenMultiSigTx(net *chaincfg.Params,privWif []string, txHash string, amount int64,  fee int64, txinIndex int32, DestinationAddress string, WIF_compress bool){
 	var addressPubKeys []*btcutil.AddressPubKey = make([]*btcutil.AddressPubKey ,0)
-	var sig_keys []*btcutil.WIF = make([]*btcutil.WIF, 10)
+	var sig_keys []*btcutil.WIF = make([]*btcutil.WIF, 0)
 	for _, wif := range privWif {
 		decodedWif, err := btcutil.DecodeWIF(wif)
 		if err != nil {
@@ -245,9 +245,30 @@ func GenMultiSigTx(net *chaincfg.Params,privWif []string,  txHash string ,amount
 	//	LockTime: 0,
 	//}
 	redeemTx := wire.NewMsgTx(wire.TxVersion)
+	sourceUTXOHash, err := chainhash.NewHashFromStr(txHash)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("UTXO hash: %s\n", sourceUTXOHash) // utxo hash: 12e0d25258ec29fadf75a3f569fccaeeb8ca4af5d2d34e9a48ab5a6fdc0efc1e
+	sourceUTXOIndex := uint32(txinIndex)
+	sourceUTXO := wire.NewOutPoint(sourceUTXOHash, sourceUTXOIndex)
+	sourceTxIn := wire.NewTxIn(sourceUTXO, nil, nil)
+	redeemTx.AddTxIn(sourceTxIn)
+
+	destinationAddress, err := btcutil.DecodeAddress(DestinationAddress, net)
+	if err != nil {
+		log.Fatal(err)
+	}
+	destinationPkScript, err := txscript.PayToAddrScript(destinationAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	redeemTxOut := wire.NewTxOut(amount-fee, destinationPkScript)
+	redeemTx.AddTxOut(redeemTxOut)
 
 	msg := fmt.Sprintf("%d:%d", txscript.SigHashAll, txinIndex)
-	if err := signAndCheck(msg, redeemTx, 0, amount,
+	if err := signAndCheck(net, msg, redeemTx, 0, amount,
 		scriptPkScript, txscript.SigHashAll,
 		mkGetKey(map[string]addressToKey{
 			addressPubKeys[0].EncodeAddress(): {sig_keys[0].PrivKey, true},
@@ -257,6 +278,10 @@ func GenMultiSigTx(net *chaincfg.Params,privWif []string,  txHash string ,amount
 		}), nil); err != nil {
 		log.Fatal(err)
 	}
+	buf := bytes.NewBuffer(make([]byte, 0, redeemTx.SerializeSize()))
+	redeemTx.Serialize(buf)
+
+	fmt.Printf("Redeem multisig Tx: %v\n", hex.EncodeToString(buf.Bytes()))
 }
 
 func GenTx(net *chaincfg.Params,privWif string,amount int64, txoutInfos []TxOutAddressInfo, txHash string , txinIndex int32,WIF_compress bool) {
