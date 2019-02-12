@@ -43,12 +43,12 @@ func main() {
 	btc.GetInputAddress(address_input, &chaincfg.RegressionNetParams, btc.WitnessPubKeyHash)
 
 	txoutInfos := make([]btc.TxOutAddressInfo, 0)
-	txoutInfos = append(txoutInfos, btc.TxOutAddressInfo{"n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3", 800000000})
-	txoutInfos = append(txoutInfos, btc.TxOutAddressInfo{"mgbMRCieM4b2owd8K6bDd7fjhzNPMirqb7", 998500000})
+	txoutInfos = append(txoutInfos, btc.TxOutAddressInfo{"n1yJ5g9k5zSdU9iLGyjLhuF8RYvmVp5TR3", 200000000})
+	txoutInfos = append(txoutInfos, btc.TxOutAddressInfo{"mgbMRCieM4b2owd8K6bDd7fjhzNPMirqb7", 299500000})
 	var WIFs = make([]string, 0)
 	WIFs = append(WIFs, "cSkELxYraVBYBeU1QvoasNYzdWJkXoS5x1LK7PMLE1q74TZTYMZG")
 	WIFs = append(WIFs, "cRFq9JJGVqjGe9RDpT49BxCPbGJoy1N8jGk4Muit8iP1JtpJE4XA")
-	btc.GenMultiSigTx(&chaincfg.RegressionNetParams, WIFs,  "8aa1b3b91a638a6ed6c489035c26257e780f8d52af9ad5324d96515f08fb326f" , 800000000, 5000000, 1,"mgbMRCieM4b2owd8K6bDd7fjhzNPMirqb7",true)
+	btc.GenMultiSigTx(&chaincfg.RegressionNetParams, WIFs,  "9333cfe2310042e38b1b3a5ac849979e8783964cff2a71a42b4d568875cafa6a" , 500000000, txoutInfos, 0,true)
 	//btc.GenTx(&chaincfg.MainNetParams)
 	btc.GenTx(&chaincfg.RegressionNetParams, "cRFq9JJGVqjGe9RDpT49BxCPbGJoy1N8jGk4Muit8iP1JtpJE4XA",
 		1799000000,txoutInfos,

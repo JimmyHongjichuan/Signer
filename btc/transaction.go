@@ -157,35 +157,34 @@ func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
 }
 
 
-func GenMultiSigTx(net *chaincfg.Params,privWif []string, txHash string, amount int64,  fee int64, txinIndex int32, DestinationAddress string, WIF_compress bool){
+func GenMultiSigTx(net *chaincfg.Params,privWif []string, txHash string, amount int64,  txoutInfos []TxOutAddressInfo, txinIndex int32,  WIF_compress bool){
 	var addressPubKeys []*btcutil.AddressPubKey = make([]*btcutil.AddressPubKey ,0)
-	var sig_keys []*btcutil.WIF = make([]*btcutil.WIF, 0)
+
+	var multisiginfos =  make(map[string]addressToKey)
 	for _, wif := range privWif {
 		decodedWif, err := btcutil.DecodeWIF(wif)
 		if err != nil {
 			log.Fatal(err)
 		}
-		sig_keys = append(sig_keys, decodedWif)
-		fmt.Printf("Decoded WIF: %v\n", decodedWif) // Decoded WIF: cS5LWK2aUKgP9LmvViG3m9HkfwjaEJpGVbrFHuGZKvW2ae3W9aUe
-		//PubKey, err := hex.DecodeString("030b4bbfeca237a4bab81a3adeef76cc1cbcfa5e7cac5c22754e47ba42e1fe9579")
-		//if err != nil {
-		//	panic(err)
-		//}
 
+		fmt.Printf("Decoded WIF: %v\n", decodedWif)
+
+		var addressPubKey *btcutil.AddressPubKey
 		if (WIF_compress == true) {
-			addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), net)
+			addressPubKey, err = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeCompressed(), net)
 
 			if err != nil {
 				log.Fatal(err)
 			}
 			addressPubKeys = append(addressPubKeys,addressPubKey)
 		} else {
-			addressPubKey, err := btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), net)
+			addressPubKey, err = btcutil.NewAddressPubKey(decodedWif.PrivKey.PubKey().SerializeUncompressed(), net)
 			if err != nil {
 				log.Fatal(err)
 			}
 			addressPubKeys = append(addressPubKeys,addressPubKey)
 		}
+		multisiginfos[addressPubKey.EncodeAddress()] = addressToKey{decodedWif.PrivKey, true}
 	}
 	pkScript, err := txscript.MultiSigScript(
 		addressPubKeys,
@@ -205,45 +204,6 @@ func GenMultiSigTx(net *chaincfg.Params,privWif []string, txHash string, amount 
 		log.Fatal(err)
 	}
 
-
-	//tx := &wire.MsgTx{
-	//	Version: 1,
-	//	TxIn: []*wire.TxIn{
-	//		{
-	//			PreviousOutPoint: wire.OutPoint{
-	//				Hash:  chainhash.Hash{},
-	//				Index: 0,
-	//			},
-	//			Sequence: 4294967295,
-	//		},
-	//		{
-	//			PreviousOutPoint: wire.OutPoint{
-	//				Hash:  chainhash.Hash{},
-	//				Index: 1,
-	//			},
-	//			Sequence: 4294967295,
-	//		},
-	//		{
-	//			PreviousOutPoint: wire.OutPoint{
-	//				Hash:  chainhash.Hash{},
-	//				Index: 2,
-	//			},
-	//			Sequence: 4294967295,
-	//		},
-	//	},
-	//	TxOut: []*wire.TxOut{
-	//		{
-	//			Value: 1,
-	//		},
-	//		{
-	//			Value: 2,
-	//		},
-	//		{
-	//			Value: 3,
-	//		},
-	//	},
-	//	LockTime: 0,
-	//}
 	redeemTx := wire.NewMsgTx(wire.TxVersion)
 	sourceUTXOHash, err := chainhash.NewHashFromStr(txHash)
 	if err != nil {
@@ -256,26 +216,26 @@ func GenMultiSigTx(net *chaincfg.Params,privWif []string, txHash string, amount 
 	sourceTxIn := wire.NewTxIn(sourceUTXO, nil, nil)
 	redeemTx.AddTxIn(sourceTxIn)
 
-	destinationAddress, err := btcutil.DecodeAddress(DestinationAddress, net)
-	if err != nil {
-		log.Fatal(err)
+	for _, txoutInfo := range txoutInfos {
+		destinationAddress, err := btcutil.DecodeAddress(txoutInfo.DestinationAddress, net)
+		if err != nil {
+			log.Fatal(err)
+		}
+		destinationPkScript, err := txscript.PayToAddrScript(destinationAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		redeemTxOut := wire.NewTxOut(txoutInfo.PayAmount, destinationPkScript)
+		redeemTx.AddTxOut(redeemTxOut)
 	}
-	destinationPkScript, err := txscript.PayToAddrScript(destinationAddress)
-	if err != nil {
-		log.Fatal(err)
-	}
-	redeemTxOut := wire.NewTxOut(amount-fee, destinationPkScript)
-	redeemTx.AddTxOut(redeemTxOut)
 
 	msg := fmt.Sprintf("%d:%d", txscript.SigHashAll, txinIndex)
 	if err := signAndCheck(net, msg, redeemTx, 0, amount,
 		scriptPkScript, txscript.SigHashAll,
-		mkGetKey(map[string]addressToKey{
-			addressPubKeys[0].EncodeAddress(): {sig_keys[0].PrivKey, true},
-			addressPubKeys[1].EncodeAddress(): {sig_keys[1].PrivKey, true},
-		}), mkGetScript(map[string][]byte{
+		mkGetKey(multisiginfos), mkGetScript(map[string][]byte{
 			scriptAddr.EncodeAddress(): pkScript,
-		}), nil); err != nil {
+		}),
+		nil); err != nil {
 		log.Fatal(err)
 	}
 	buf := bytes.NewBuffer(make([]byte, 0, redeemTx.SerializeSize()))
